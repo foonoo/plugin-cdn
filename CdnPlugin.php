@@ -2,37 +2,70 @@
 
 namespace foonoo\plugins\contrib\cdn;
 
+use clearice\io\Io;
 use foonoo\content\Content;
 use foonoo\events\ContentGenerationStarted;
 use foonoo\events\ContentOutputGenerated;
+use foonoo\events\SiteWriteStarted;
 use foonoo\Plugin;
+use foonoo\sites\AbstractSite;
 
 /**
  * Class CdnPlugin
  */
 class CdnPlugin extends Plugin
 {
-    /**
-     * @var Content
-     */
-    private $activeContent;
+    private $imageDirectory;
+    private $imageDirectoryLen;
+    private $assetsDirectory;
+    private $assetsDirectoryLen;
+    private $supportedTags;
 
     /**
      * @return \Closure[]
      */
     public function getEvents()
     {
+        $this->supportedTags = ['//img' => [$this, 'processImg'], '//picture//source' => [$this, 'processPicture']];
+
         return [
             ContentOutputGenerated::class => function (ContentOutputGenerated $event) { $this->processMarkup($event); },
-            ContentGenerationStarted::class => function (ContentGenerationStarted $event) {
-                $this->activeContent = $event->getContent();
+            SiteWriteStarted::class => function (SiteWriteStarted  $event) {
+                $this->imageDirectory = $event->getSite()->getDestinationPath("np_images");
+                $this->imageDirectoryLen = strlen($this->imageDirectory);
+                $this->assetsDirectory = $event->getSite()->getDestinationPath("assets");
+                $this->assetsDirectoryLen = strlen($this->assetsDirectory);
             }
         ];
     }
 
-    private function processImg(\DOMElement $tag) {
-        $src = $tag->getAttribute("src");
-        var_dump($src, $this->activeContent->getDestination());
+    private function getUrl(string $src, AbstractSite $site, Content $content)
+    {
+        $imageDestination = realpath(dirname($site->getDestinationPath($content->getDestination())) . "/$src");
+        if($imageDestination !== false) {
+            return $this->getOption("base_url", "https://cdn.hotocameras.com") . "/images" . substr($imageDestination, $this->imageDirectoryLen);
+        }
+        return false;
+    }
+
+    private function processImg(\DOMElement $tag, Content $content, AbstractSite $site)
+    {
+        $imageDestination = $this->getUrl($tag->getAttribute('src'), $site, $content);
+        if($imageDestination) {
+            $tag->setAttribute("src", $imageDestination);
+        }
+    }
+
+    private function processSrcSet(string $srcset, Content $content, AbstractSite $site)
+    {
+        $splitSrc = explode($srcset, ",");
+        
+    }
+
+    private function processPicture(\DOMElement $tag, Content $content, AbstractSite $site)
+    {
+        $srcSet = $tag->getAttribute('srcset');
+
     }
 
     private function processMarkup(ContentOutputGenerated  $event)
@@ -40,13 +73,13 @@ class CdnPlugin extends Plugin
         if(!$event->hasDOM()) {
             return;
         }
-
         $xpath = new \DOMXPath($event->getDOM());
-        $supportedTags = ['img' => [$this, 'processImg']];
-        foreach($supportedTags as $tag => $processor) {
-            $tags = $xpath->query("//$tag");
+        $content = $event->getContent();
+        $site = $event->getSite();
+        foreach($this->supportedTags as $query => $processor) {
+            $tags = $xpath->query("$query");
             foreach($tags as $tag) {
-                $this->processImg($tag);
+                $processor($tag, $content, $site);
             }
         }
     }
