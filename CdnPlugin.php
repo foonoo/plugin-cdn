@@ -5,6 +5,7 @@ namespace foonoo\plugins\contrib\cdn;
 use clearice\io\Io;
 use foonoo\content\Content;
 use foonoo\events\ContentGenerationStarted;
+use foonoo\events\ContentLayoutApplied;
 use foonoo\events\ContentOutputGenerated;
 use foonoo\events\SiteWriteStarted;
 use foonoo\Plugin;
@@ -29,7 +30,7 @@ class CdnPlugin extends Plugin
         $this->supportedTags = ['//img' => [$this, 'processImg'], '//picture//source' => [$this, 'processPicture']];
 
         return [
-            ContentOutputGenerated::class => function (ContentOutputGenerated $event) { $this->processMarkup($event); },
+            ContentLayoutApplied::class => function (ContentLayoutApplied $event) { $this->processMarkup($event); },
             SiteWriteStarted::class => function (SiteWriteStarted  $event) {
                 $this->imageDirectory = $event->getSite()->getDestinationPath("np_images");
                 $this->imageDirectoryLen = strlen($this->imageDirectory);
@@ -39,11 +40,19 @@ class CdnPlugin extends Plugin
         ];
     }
 
+    private function getDestinationType($path): array
+    {
+        if(substr($path, 0, $this->imageDirectoryLen) == $this->imageDirectory) return [$this->imageDirectoryLen, "/images"];
+        if(substr($path, 0, $this->assetsDirectoryLen) == $this->assetsDirectory) return [$this->assetsDirectoryLen, "/assets"];
+        return [0, ""];
+    }
+
     private function getUrl(string $src, AbstractSite $site, Content $content)
     {
-        $imageDestination = realpath(dirname($site->getDestinationPath($content->getDestination())) . "/$src");
-        if($imageDestination !== false) {
-            return $this->getOption("base_url", "https://cdn.hotocameras.com") . "/images" . substr($imageDestination, $this->imageDirectoryLen);
+        $destination = realpath(dirname($site->getDestinationPath($content->getDestination())) . "/$src");
+        if($destination !== false) {
+            list($len, $type) = $this->getDestinationType($destination);
+            return $this->getOption("base_url", "https://cdn.hotocameras.com") . $type . substr($destination, $len);
         }
         return false;
     }
@@ -75,7 +84,7 @@ class CdnPlugin extends Plugin
         $tag->setAttribute('srcset', $this->processSrcSet($tag->getAttribute('srcset'), $content, $site));
     }
 
-    private function processMarkup(ContentOutputGenerated  $event)
+    private function processMarkup(ContentLayoutApplied $event)
     {
         if(!$event->hasDOM()) {
             return;
