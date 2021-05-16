@@ -56,16 +56,23 @@ class CdnPlugin extends Plugin
         }
     }
 
-    private function processSrcSet(string $srcset, Content $content, AbstractSite $site)
+    private function processSrcSet(string $srcset, Content $content, AbstractSite $site): string
     {
-        $splitSrc = explode($srcset, ",");
-        
+        $splitSrc = explode(",", $srcset);
+        foreach($splitSrc as $i => $src) {
+            $parts = explode(" ", trim($src));
+            $translated = $this->getUrl($parts[0], $site, $content);
+            if($translated) {
+                $parts[0] = $translated;
+            }
+            $splitSrc[$i] = implode(" ", $parts);
+        }
+        return implode(", ", $splitSrc);
     }
 
     private function processPicture(\DOMElement $tag, Content $content, AbstractSite $site)
     {
-        $srcSet = $tag->getAttribute('srcset');
-
+        $tag->setAttribute('srcset', $this->processSrcSet($tag->getAttribute('srcset'), $content, $site));
     }
 
     private function processMarkup(ContentOutputGenerated  $event)
