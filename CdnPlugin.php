@@ -54,7 +54,7 @@ class CdnPlugin extends Plugin
                 $this->processMarkup($event);
             },
             SiteWriteStarted::class => function (SiteWriteStarted $event) {
-                $this->imageDirectory = $event->getSite()->getDestinationPath("np_images");
+                $this->imageDirectory = $event->getSite()->getDestinationPath("images");
                 $this->imageDirectoryLen = strlen($this->imageDirectory);
                 $this->assetsDirectory = $event->getSite()->getDestinationPath("assets");
                 $this->assetsDirectoryLen = strlen($this->assetsDirectory);
