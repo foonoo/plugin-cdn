@@ -1,6 +1,6 @@
 <?php
 
-namespace foonoo\plugins\contrib\cdn;
+namespace foonoo\plugins\foonoo\cdn;
 
 use clearice\io\Io;
 use foonoo\content\Content;
