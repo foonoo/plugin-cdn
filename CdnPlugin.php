@@ -2,7 +2,7 @@
 
 namespace foonoo\plugins\foonoo\cdn;
 
-use clearice\io\Io;
+use Dom\HTMLElement;
 use foonoo\content\Content;
 use foonoo\events\ContentLayoutApplied;
 use foonoo\events\PluginsInitialized;
@@ -44,9 +44,9 @@ class CdnPlugin extends Plugin
     public function getEvents()
     {
         $this->supportedTags = [
-            '//img' => [$this, 'processImg'], '//picture//source' => [$this, 'processPicture'],
-            "//script" => [$this, 'processScript'], "//link" => [$this, 'processHreffed'],
-            "//a" => [$this, 'processHreffed']
+            "img" => [$this, 'processImg'], 'picture > source' => [$this, 'processPicture'],
+            "script" => [$this, 'processScript'], "link" => [$this, 'processHreffed'],
+            "a" => [$this, 'processHreffed']
         ];
 
         return [
@@ -104,7 +104,7 @@ class CdnPlugin extends Plugin
         return false;
     }
 
-    private function setUrlAttribute(\DOMElement $tag, string $attribute, Content $content, AbstractSite $site)
+    private function setUrlAttribute(HTMLElement $tag, string $attribute, Content $content, AbstractSite $site): void
     {
         $value = $tag->getAttribute($attribute);
         if($value == "") {
@@ -119,11 +119,11 @@ class CdnPlugin extends Plugin
     /**
      * Process an img tag
      *
-     * @param \DOMElement $tag
+     * @param HTMLElement $tag
      * @param Content $content
      * @param AbstractSite $site
      */
-    private function processImg(\DOMElement $tag, Content $content, AbstractSite $site)
+    private function processImg(HTMLElement $tag, Content $content, AbstractSite $site): void
     {
         $src = $tag->getAttribute('src');
         if ($src) {
@@ -159,17 +159,17 @@ class CdnPlugin extends Plugin
         return implode(", ", $splitSrc);
     }
 
-    private function processPicture(\DOMElement $tag, Content $content, AbstractSite $site)
+    private function processPicture(HTMLElement $tag, Content $content, AbstractSite $site): void
     {
         $tag->setAttribute('srcset', $this->processSrcSet($tag->getAttribute('srcset'), $content, $site));
     }
 
-    private function processHreffed(\DOMElement $tag, Content $content, AbstractSite $site)
+    private function processHreffed(HTMLElement $tag, Content $content, AbstractSite $site): void
     {
         $this->setUrlAttribute($tag, 'href', $content, $site);
     }
 
-    private function processScript(\DOMElement $tag, Content $content, AbstractSite $site)
+    private function processScript(HTMLElement $tag, Content $content, AbstractSite $site): void
     {
         $this->setUrlAttribute($tag, 'src', $content, $site);
     }
@@ -180,11 +180,12 @@ class CdnPlugin extends Plugin
             return;
         }
         $this->stdOut("Replacing URLs in {$event->getContent()->getDestination()}\n");
-        $xpath = new \DOMXPath($event->getDOM());
+        //$xpath = new XPath($event->getDOM());
+        $dom = $event->getDOM();
         $content = $event->getContent();
         $site = $event->getSite();
         foreach ($this->supportedTags as $query => $processor) {
-            $tags = $xpath->query("$query");
+            $tags = $dom->querySelectorAll($query); //$xpath->query("$query");
             foreach ($tags as $tag) {
                 $processor($tag, $content, $site);
             }
